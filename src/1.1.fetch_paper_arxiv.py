@@ -178,6 +178,49 @@ def log(message: str) -> None:
             pass
 
 
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except Exception:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _format_supabase_batch_window(papers: list[dict]) -> str:
+    published_ts: list[datetime] = []
+    updated_ts: list[datetime] = []
+    for paper in papers:
+        if not isinstance(paper, dict):
+            continue
+        p_pub = _parse_iso_datetime(str(paper.get("published") or ""))
+        p_upd = _parse_iso_datetime(str(paper.get("updated_at") or ""))
+        if p_pub:
+            published_ts.append(p_pub)
+        if p_upd:
+            updated_ts.append(p_upd)
+
+    if published_ts:
+        published_ts.sort()
+        pub_min = published_ts[0].strftime("%Y-%m-%d %H:%M:%S%z")
+        pub_max = published_ts[-1].strftime("%Y-%m-%d %H:%M:%S%z")
+    else:
+        pub_min = pub_max = "N/A"
+
+    if updated_ts:
+        updated_ts.sort()
+        up_min = updated_ts[0].strftime("%Y-%m-%d %H:%M:%S%z")
+        up_max = updated_ts[-1].strftime("%Y-%m-%d %H:%M:%S%z")
+    else:
+        up_min = up_max = "N/A"
+
+    return f"published=[{pub_min} -> {pub_max}], updated=[{up_min} -> {up_max}]"
+
+
 def group_start(title: str) -> None:
     try:
         print(f"::group::{title}", flush=True)
@@ -417,6 +460,7 @@ def fetch_all_domains_metadata_robust(
                 with open(output_file, "w", encoding="utf-8") as f:
                     json.dump(papers, f, ensure_ascii=False, indent=2)
                 log(f"💾 Supabase 结果已写入：{output_file}")
+                log(f"[Supabase] 该批次时间区间：{_format_supabase_batch_window(papers)}")
 
                 # 记录抓取时间，维持后续流程一致性
                 save_last_crawl_at(end_date)

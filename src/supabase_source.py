@@ -281,7 +281,7 @@ def fetch_papers_by_date_range(
         while fetched < int(max_rows):
             page_limit = min(per_page, int(max_rows) - fetched)
             select_fields = (
-                "id,title,abstract,authors,primary_category,categories,published,link,source"
+                "id,title,abstract,authors,primary_category,categories,published,updated_at,link,source"
             )
             if include_embedding:
                 select_fields += ",embedding,embedding_model,embedding_dim,embedding_updated_at"
@@ -340,6 +340,7 @@ def fetch_papers_by_date_range(
                     "primary_category": _norm(r.get("primary_category")) or None,
                     "categories": r.get("categories") if isinstance(r.get("categories"), list) else [],
                     "published": _norm(r.get("published")),
+                    "updated_at": _norm(r.get("updated_at")),
                     "link": _norm(r.get("link")),
                     "embedding": _parse_embedding(r.get("embedding")) if include_embedding else None,
                     "embedding_model": _norm(r.get("embedding_model")) if include_embedding else "",
